@@ -269,4 +269,6 @@ if mode == "admin" and admin_logged_in:
                     marker = " 🟡 PÅ VENTEPLADS"
                 elif idx == 2:
                     marker = " 🟢 NÆSTE"
+            
+            colA.write(f"{format_entry(e)}{marker}")
 
