@@ -234,41 +234,50 @@ if mode == "admin" and admin_logged_in:
     tabs = st.tabs(list(flows.keys()))
 
     for tab, flow_name in zip(tabs, flows.keys()):
+
         with tab:
 
             flow = flows[flow_name]
 
             st.subheader(flow_name)
 
-            if flow:
-                st.metric("Søger", format_entry(flow[0]))
-            if len(flow) > 1:
-                st.metric("På venteplads", format_entry(flow[1]))
+            cur = flow["current"]
 
             col1, col2 = st.columns(2)
 
-            if col1.button("▶️ Næste", key=f"adv_{flow_name}"):
+            with col1:
+                st.metric("Søger", hent_visning(flow, cur))
+
+            with col2:
+                st.metric("På venteplads", hent_visning(flow, cur + 1))
+
+            if st.button("▶️ Næste hund", key=f"adv_{flow_name}"):
                 avancer(flow_name)
                 st.rerun()
 
-            if col2.button("↩️ Fortryd", key=f"undo_{flow_name}"):
+            if st.button("↩️ Fortryd", key=f"undo_{flow_name}"):
                 fortryd(flow_name)
                 st.rerun()
 
             st.divider()
 
-            
-            for idx, e in enumerate(flow):
+            st.markdown("### Rækkefølge")
 
-                colA, colB, colC, colD = st.columns([6,1,1,1])
+            for idx, entry in enumerate(flow["queue"]):
+
+                colA, colB = st.columns([6, 1])
 
                 marker = ""
-                if idx == 0:
-                    marker = " 🔴 SØGER"
-                elif idx == 1:
-                    marker = " 🟡 PÅ VENTEPLADS"
-                elif idx == 2:
-                    marker = " 🟢 NÆSTE"
-            
-            colA.write(f"{format_entry(e)}{marker}")
+                if idx == cur:
+                    marker = "🔴 SØGER"
+                elif idx == cur + 1:
+                    marker = "🟡 PÅ VENTEPLADS"
+                elif idx == cur + 2:
+                    marker = "🟢 NÆSTE"
+
+                colA.write(
+                    f"{entry['dog']} - {entry['handler']} ({entry['dog_name']}) {marker}"
+                )
+
+            st.divider()
 
