@@ -270,20 +270,3 @@ if mode == "admin" and admin_logged_in:
                 elif idx == 2:
                     marker = " 🟢 NÆSTE"
 
-                colA.write(f"{format_entry(e)}{marker}")
-
-                if colB.button("⬆️", key=f"up_{flow_name}_{idx}") and idx > 0:
-                    flow[idx], flow[idx-1] = flow[idx-1], flow[idx]
-                    save_all(flows)
-                    st.rerun()
-
-                if colC.button("⬇️", key=f"down_{flow_name}_{idx}") and idx < len(flow)-1:
-                    flow[idx], flow[idx+1] = flow[idx+1], flow[idx]
-                    save_all(flows)
-                    st.rerun()
-
-                if colD.button("❌", key=f"del_{flow_name}_{idx}"):
-                    flow.pop(idx)
-                    save_all(flows)
-                    st.rerun()
-
