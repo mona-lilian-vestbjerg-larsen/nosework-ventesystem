@@ -248,11 +248,10 @@ if is_admin and admin_logged_in:
                 reset_flow(name)
                 st.rerun()
 
-            with c1:
-                st.metric("Søger", hent_visning(flow, cur))
-
-            with c2:
-                st.metric("På venteplads", hent_visning(flow, cur + 1))
+            if flow:
+                st.metric("Søger", format_entry(flow[0]))
+            if len(flow) > 1:
+                st.metric("På venteplads", format_entry(flow[1]))
 
             # Actions
             if c1.button("▶️ Næste", key=f"next_{name}"):
