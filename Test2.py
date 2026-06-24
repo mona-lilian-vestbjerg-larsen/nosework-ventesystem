@@ -211,18 +211,18 @@ if mode == "public":
     st.title("NoseWork Ventesystem")
 
     if is_screen:
-        tabs = st.tabs(list(flows.keys()))
-
-        for tab, (flow_name, flow) in zip(tabs, flows.items()):
-            with tab:
-                vis_flow(flow_name, flow)
-
-    else:
         cols = st.columns(len(flows))
 
         for col, (flow_name, flow) in zip(cols, flows.items()):
             with col:
                 st.header(flow_name)
+                vis_flow(flow_name, flow)
+
+    else:
+        tabs = st.tabs(list(flows.keys()))
+
+        for tab, (flow_name, flow) in zip(tabs, flows.items()):
+            with tab:
                 vis_flow(flow_name, flow)
 
 # ==================================================
