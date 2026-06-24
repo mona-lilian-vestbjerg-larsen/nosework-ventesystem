@@ -313,5 +313,5 @@ if mode == "admin" and admin_logged_in:
             # ✅ DONE LIST
             st.markdown("### ✅ Allerede søgt")
 
-            for e in reversed(done):
+            for e in done:
                 st.write(format_entry(e))
