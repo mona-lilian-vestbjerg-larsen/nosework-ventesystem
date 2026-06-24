@@ -134,11 +134,13 @@ mode_choice = st.sidebar.radio(
 
 layout_choice = st.sidebar.radio(
     "Layout",
-    ["Skærm", "Mobil"]
+    # ["Skærm", "Mobil"]
+    ["Mobil", "Skærm"]
 )
 
 mode = "admin" if mode_choice == "Administration" else "public"
-is_mobile = layout_choice == "Mobil"
+# is_mobile = layout_choice == "Mobil"
+is_screen = layout_choice == "Skærm"
 
 # ==================================================
 # LOAD FLOWS
