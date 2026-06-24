@@ -210,7 +210,7 @@ if mode == "public":
 
     st.title("NoseWork Ventesystem")
 
-    if is_mobile:
+    if is_screen:
         tabs = st.tabs(list(flows.keys()))
 
         for tab, (flow_name, flow) in zip(tabs, flows.items()):
