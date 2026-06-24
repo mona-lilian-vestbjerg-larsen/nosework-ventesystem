@@ -4,15 +4,14 @@ import gspread
 from google.oauth2.service_account import Credentials
 from streamlit_autorefresh import st_autorefresh
 
-if st.query_params.get("autorefresh", "1") == "1":
-    st_autorefresh(interval=2000, key="global_refresh")
-
 # ==================================================
 # PAGE SETUP
 # ==================================================
 
 st.set_page_config(layout="wide")
-st_autorefresh(interval=3000, key="refresh")
+
+if st.query_params.get("autorefresh", "1") == "1":
+    st_autorefresh(interval=2000, key="global_refresh")
 
 # ==================================================
 # CONFIG
