@@ -248,6 +248,15 @@ if is_admin and admin_logged_in:
                 reset_flow(name)
                 st.rerun()
 
+            # Actions
+            if st.button("▶️ Næste", key=f"next_{name}"):
+                avancer(name)
+                st.rerun()
+
+            if st.button("↩️ Fortryd", key=f"undo_{name}"):
+                fortryd(name)
+                st.rerun()
+            
             st.divider()
 
             # Active queue
@@ -268,12 +277,3 @@ if is_admin and admin_logged_in:
             st.markdown("### ✅ Allerede søgt")
             for e in done:
                 st.write(format_entry(e))
-
-            # Actions
-            if st.button("▶️ Næste", key=f"next_{name}"):
-                avancer(name)
-                st.rerun()
-
-            if st.button("↩️ Fortryd", key=f"undo_{name}"):
-                fortryd(name)
-                st.rerun()
