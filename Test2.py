@@ -253,12 +253,13 @@ if is_admin and admin_logged_in:
             if len(flow) > 1:
                 st.metric("På venteplads", format_entry(flow[1]))
 
-            # Actions
-            if c1.button("▶️ Næste", key=f"next_{name}"):
+            col1, col2 = st.columns(2)
+            
+            if col1.button("▶️ Næste", key=f"next_{name}"):
                 avancer(name)
                 st.rerun()
 
-            if c2.button("↩️ Fortryd", key=f"undo_{name}"):
+            if col2.button("↩️ Fortryd", key=f"undo_{name}"):
                 fortryd(name)
                 st.rerun()
             
