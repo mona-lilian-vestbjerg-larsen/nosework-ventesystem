@@ -224,14 +224,25 @@ if not is_admin:
     st.title("NoseWork")
 
     if is_screen:
-        cols = st.columns(len(flows))
-        for col, (name, flow) in zip(cols, flows.items()):
+        all_names = list(st.session_state.original_flows.keys())
+        
+        cols = st.columns(len(all_names))
+        
+        for col, name in zip(cols, all_names):
+            flow = flows.get(name, [])
+        
             with col:
                 st.header(name)
                 vis_flow(name, flow)
+
     else:
-        tabs = st.tabs(list(flows.keys()))
-        for tab, (name, flow) in zip(tabs, flows.items()):
+        all_names = list(st.session_state.original_flows.keys())
+        
+        tabs = st.tabs(all_names)
+        
+        for tab, name in zip(tabs, all_names):
+            flow = flows.get(name, [])
+        
             with tab:
                 vis_flow(name, flow)
 
