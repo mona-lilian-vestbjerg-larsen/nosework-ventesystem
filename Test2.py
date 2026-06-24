@@ -105,12 +105,6 @@ if "original_flows" not in st.session_state:
         k: list(v) for k, v in original.items()
     }
 
-if is_admin:
-    flows = st.session_state.flows
-else:
-    # ✅ public users always read latest from sheet
-    flows = load_data()
-
 if "done_flows" not in st.session_state:
     st.session_state.done_flows = {f: [] for f in flows}
 
@@ -159,6 +153,11 @@ layout = st.sidebar.radio("Layout", ["Mobil", "Skærm"])
 
 is_admin = mode == "Administration"
 is_screen = layout == "Skærm"
+
+if is_admin:
+    flows = st.session_state.flows
+else:
+    flows = load_data()
 
 # ==================================================
 # LOGIN
