@@ -147,6 +147,16 @@ def fortryd(flow):
         # ✅ keep session updated
         st.session_state.flows = flows
 
+def reset_flow(flow_name):
+    # reload everything from sheet
+    fresh_data = load_data()
+
+    if flow_name in fresh_data:
+        st.session_state.flows[flow_name] = fresh_data[flow_name]
+
+    # clear done for that flow
+    st.session_state.done_flows[flow_name] = []
+
 # ==================================================
 # SIDEBAR
 # ==================================================
@@ -158,14 +168,6 @@ layout_choice = st.sidebar.radio("Layout", ["Mobil", "Skærm"])
 
 mode = "admin" if mode_choice == "Administration" else "public"
 is_screen = layout_choice == "Skærm"
-
-if st.sidebar.button("🔄 Nulstil færdige"):
-    st.session_state.done_flows = {f: [] for f in flows.keys()}
-
-if st.sidebar.button("🔄 Reset hele konkurrencen"):
-    st.session_state.flows = load_data()
-    st.session_state.done_flows = {f: [] for f in flows.keys()}
-    st.rerun()
 
 # ==================================================
 # PASSWORD PROTECTION
@@ -261,6 +263,18 @@ if mode == "admin" and admin_logged_in:
             done = st.session_state.done_flows[flow_name]
 
             st.subheader(flow_name)
+
+            col_reset1, col_reset2 = st.columns(2)
+
+            # reset finished for this flow only
+            if col_reset1.button("🧹 Nulstil færdige", key=f"clear_done_{flow_name}"):
+                st.session_state.done_flows[flow_name] = []
+                st.rerun()
+            
+            # full restart for this flow
+            if col_reset2.button("🔄 Genstart konkurrence", key=f"reset_flow_{flow_name}"):
+                reset_flow(flow_name)
+                st.rerun()
 
             if flow:
                 st.metric("Søger", format_entry(flow[0]))
