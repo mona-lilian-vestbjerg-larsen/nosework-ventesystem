@@ -249,11 +249,11 @@ if is_admin and admin_logged_in:
                 st.rerun()
 
             # Actions
-            if st.button("▶️ Næste", key=f"next_{name}"):
+            if c1.button("▶️ Næste", key=f"next_{name}"):
                 avancer(name)
                 st.rerun()
 
-            if st.button("↩️ Fortryd", key=f"undo_{name}"):
+            if c2.button("↩️ Fortryd", key=f"undo_{name}"):
                 fortryd(name)
                 st.rerun()
             
