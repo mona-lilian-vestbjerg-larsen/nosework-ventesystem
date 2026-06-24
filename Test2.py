@@ -162,8 +162,11 @@ is_screen = layout == "Skærm"
 
 if is_admin:
     flows = st.session_state.flows
+    all_names = list(st.session_state.original_flows.keys())
 else:
     flows = load_data()
+    all_names = list(load_data().keys())
+
 
 # ==================================================
 # LOGIN
