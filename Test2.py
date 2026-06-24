@@ -13,10 +13,10 @@ st_autorefresh(interval=3000, key="refresh")
 
 st.markdown("""
 <style>
-    div[data-testid="stMetricValue"] {
-        font-size: 1.6rem;
-        font-weight: normal;
-    }
+div[data-testid="stMetricValue"] {
+    font-size: 1.6rem;
+    font-weight: normal;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -59,7 +59,7 @@ def connect():
 sheet = connect()
 
 # ==================================================
-# LOAD DATA
+# LOAD & SAVE
 # ==================================================
 
 @st.cache_data(ttl=3)
@@ -82,9 +82,6 @@ def load_data():
 
     return flows
 
-# ==================================================
-# SAVE DATA
-# ==================================================
 
 def save_all(flows):
     rows = []
@@ -104,7 +101,7 @@ def save_all(flows):
     sheet.update([df.columns.values.tolist()] + df.values.tolist())
 
 # ==================================================
-# SESSION STATE (CRITICAL FIX ✅)
+# SESSION STATE ✅ CRITICAL
 # ==================================================
 
 if "flows" not in st.session_state:
@@ -115,8 +112,7 @@ flows = st.session_state.flows
 if "done_flows" not in st.session_state:
     st.session_state.done_flows = {f: [] for f in flows.keys()}
 
-# ensure new flows also get entry
-for f in flows.keys():
+for f in flows:
     if f not in st.session_state.done_flows:
         st.session_state.done_flows[f] = []
 
@@ -131,31 +127,29 @@ def avancer(flow):
     if flows[flow]:
         finished = flows[flow].pop(0)
         st.session_state.done_flows[flow].append(finished)
-
         save_all(flows)
-
-        # ✅ keep session updated
         st.session_state.flows = flows
 
 def fortryd(flow):
     if st.session_state.done_flows[flow]:
         back = st.session_state.done_flows[flow].pop()
         flows[flow].insert(0, back)
-
         save_all(flows)
-
-        # ✅ keep session updated
         st.session_state.flows = flows
 
+# ✅ reset one flow
 def reset_flow(flow_name):
-    # reload everything from sheet
-    fresh_data = load_data()
-
-    if flow_name in fresh_data:
-        st.session_state.flows[flow_name] = fresh_data[flow_name]
-
-    # clear done for that flow
+    fresh = load_data()
+    if flow_name in fresh:
+        st.session_state.flows[flow_name] = fresh[flow_name]
     st.session_state.done_flows[flow_name] = []
+
+# ✅ restore lost dogs
+def restore_done(flow_name):
+    flows[flow_name] = st.session_state.done_flows[flow_name] + flows[flow_name]
+    st.session_state.done_flows[flow_name] = []
+    save_all(flows)
+    st.session_state.flows = flows
 
 # ==================================================
 # SIDEBAR
@@ -170,7 +164,7 @@ mode = "admin" if mode_choice == "Administration" else "public"
 is_screen = layout_choice == "Skærm"
 
 # ==================================================
-# PASSWORD PROTECTION
+# PASSWORD
 # ==================================================
 
 admin_logged_in = False
@@ -197,7 +191,7 @@ if mode == "admin":
     admin_logged_in = st.session_state.admin_ok
 
 # ==================================================
-# DISPLAY FUNCTION
+# DISPLAY
 # ==================================================
 
 def vis_flow(flow_name, flow):
@@ -205,26 +199,15 @@ def vis_flow(flow_name, flow):
         st.write("Ingen deltagere")
         return
 
-    nu = format_entry(flow[0])
-    naeste = format_entry(flow[1]) if len(flow) > 1 else "-"
-
-    st.markdown("### 🔍 SØGER")
-    st.metric("", nu)
-
-    st.divider()
-
-    st.markdown("### ⏳ PÅ VENTEPLADS")
-    st.metric("", naeste)
-
-    st.divider()
+    st.metric("🔍 SØGER", format_entry(flow[0]))
+    st.metric("⏳ PÅ VENTEPLADS", format_entry(flow[1]) if len(flow) > 1 else "-")
 
     st.markdown("### 👉 NÆSTE")
-
     for e in flow[2:2 + ANTAL_NAESTE_VISNING]:
         st.write(format_entry(e))
 
 # ==================================================
-# PUBLIC VIEW
+# PUBLIC
 # ==================================================
 
 if mode == "public":
@@ -233,7 +216,6 @@ if mode == "public":
 
     if is_screen:
         cols = st.columns(len(flows))
-
         for col, (flow_name, flow) in zip(cols, flows.items()):
             with col:
                 st.header(flow_name)
@@ -241,13 +223,12 @@ if mode == "public":
 
     else:
         tabs = st.tabs(list(flows.keys()))
-
         for tab, (flow_name, flow) in zip(tabs, flows.items()):
             with tab:
                 vis_flow(flow_name, flow)
 
 # ==================================================
-# ADMIN VIEW
+# ADMIN
 # ==================================================
 
 if mode == "admin" and admin_logged_in:
@@ -264,23 +245,29 @@ if mode == "admin" and admin_logged_in:
 
             st.subheader(flow_name)
 
-            col_reset1, col_reset2 = st.columns(2)
+            # ✅ CONTROL BUTTONS PER TAB
+            c1, c2, c3 = st.columns(3)
 
-            # reset finished for this flow only
-            if col_reset1.button("🧹 Nulstil færdige", key=f"clear_done_{flow_name}"):
+            if c1.button("🧹 Nulstil færdige", key=f"clear_{flow_name}"):
                 st.session_state.done_flows[flow_name] = []
                 st.rerun()
-            
-            # full restart for this flow
-            if col_reset2.button("🔄 Genstart konkurrence", key=f"reset_flow_{flow_name}"):
+
+            if c2.button("🔄 Genstart konkurrence", key=f"reset_{flow_name}"):
                 reset_flow(flow_name)
                 st.rerun()
+
+            if c3.button("⬅️ Gendan mistede", key=f"restore_{flow_name}"):
+                restore_done(flow_name)
+                st.rerun()
+
+            st.divider()
 
             if flow:
                 st.metric("Søger", format_entry(flow[0]))
             if len(flow) > 1:
                 st.metric("På venteplads", format_entry(flow[1]))
 
+            # NEXT / UNDO
             col1, col2 = st.columns(2)
 
             if col1.button("▶️ Næste", key=f"adv_{flow_name}"):
@@ -328,8 +315,7 @@ if mode == "admin" and admin_logged_in:
 
             st.divider()
 
-            # ✅ DONE LIST
+            # ✅ DONE LIST (correct order)
             st.markdown("### ✅ Allerede søgt")
-
             for e in done:
                 st.write(format_entry(e))
