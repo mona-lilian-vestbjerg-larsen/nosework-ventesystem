@@ -106,7 +106,14 @@ if "original_flows" not in st.session_state:
     }
 
 if "done_flows" not in st.session_state:
-    st.session_state.done_flows = {f: [] for f in flows}
+    st.session_state.done_flows = {
+        f: [] for f in st.session_state.flows
+    }
+
+for f in st.session_state.flows:
+    if f not in st.session_state.done_flows:
+        st.session_state.done_flows[f] = []
+
 
 # ==================================================
 # HELPERS
