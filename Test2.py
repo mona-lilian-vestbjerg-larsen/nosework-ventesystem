@@ -115,12 +115,16 @@ def avancer(flow):
         finished = flows[flow].pop(0)
         st.session_state.done_flows[flow].append(finished)
         save_all(flows)
+        st.session_state.flows = flows
+        st.session_state.force_reload = True
 
 def fortryd(flow):
     if st.session_state.done_flows[flow]:
         back = st.session_state.done_flows[flow].pop()
         flows[flow].insert(0, back)
         save_all(flows)
+        st.session_state.flows = flows
+        st.session_state.force_reload = True
 
 # ==================================================
 # SIDEBAR
@@ -134,13 +138,15 @@ layout_choice = st.sidebar.radio("Layout", ["Mobil", "Skærm"])
 mode = "admin" if mode_choice == "Administration" else "public"
 is_screen = layout_choice == "Skærm"
 
-flows = load_data()
+if "flows" not in st.session_state or st.session_state.get("force_reload"):
+    st.session_state.flows = load_data()
+    st.session_state.force_reload = False
 
-# ✅ INIT DONE STATE (IMPORTANT FIX)
+flows = st.session_state.flows
+
 if "done_flows" not in st.session_state:
     st.session_state.done_flows = {f: [] for f in flows.keys()}
 
-# ensure new flows also get entry
 for f in flows.keys():
     if f not in st.session_state.done_flows:
         st.session_state.done_flows[f] = []
