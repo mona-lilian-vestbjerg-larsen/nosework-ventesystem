@@ -198,7 +198,7 @@ if is_admin:
 
 def vis_flow(name, flow):
     if not flow:
-        st.markdown("## ✅ FÆRDIG")
+        st.markdown("### ✅ FÆRDIG")
         st.markdown("Alle hunde har gennemført")
         return
 
@@ -248,15 +248,22 @@ if is_admin and admin_logged_in:
 
     st.title("Administration")
 
-    tabs = st.tabs(list(flows.keys()))
+    all_names = list(st.session_state.original_flows.keys())
+    
+    tabs = st.tabs(all_names)
+    
+    for tab, name in zip(tabs, all_names):
+        flow = flows.get(name, [])
 
-    for tab, name in zip(tabs, flows.keys()):
         with tab:
 
-            flow = flows[name]
-            done = st.session_state.done_flows[name]
-
+            flow = flows.get(name, [])
+            done = st.session_state.done_flows.get(name, [])
+            
             st.subheader(name)
+
+            if not flow:
+                st.markdown("### ✅ FÆRDIG")
 
             # ✅ Buttons INSIDE TAB
             if st.button("🔄 Genstart", key=f"reset_{name}"):
