@@ -198,14 +198,8 @@ if is_admin:
 
 def vis_flow(name, flow):
     if not flow:
-        st.markdown(
-            "<h1 style='text-align: center; color: green;'>✅ FÆRDIG</h1>",
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            "<p style='text-align: center;'>Alle hunde har gennemført</p>",
-            unsafe_allow_html=True
-        )
+        st.markdown("## ✅ FÆRDIG")
+        st.markdown("Alle hunde har gennemført")
         return
 
     st.metric("🔍 SØGER", format_entry(flow[0]))
