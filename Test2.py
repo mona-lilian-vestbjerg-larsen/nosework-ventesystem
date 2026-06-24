@@ -4,6 +4,9 @@ import gspread
 from google.oauth2.service_account import Credentials
 from streamlit_autorefresh import st_autorefresh
 
+if st.query_params.get("autorefresh", "1") == "1":
+    st_autorefresh(interval=2000, key="global_refresh")
+
 # ==================================================
 # PAGE SETUP
 # ==================================================
@@ -115,27 +118,25 @@ if "done_flows" not in st.session_state:
 def format_entry(e):
     return f"{e[STARTNR_KOLONNE]} - {e[FORER_KOLONNE]} ({e[HUND_KOLONNE]})"
 
-
 def avancer(flow):
     if flows[flow]:
         finished = flows[flow].pop(0)
         st.session_state.done_flows[flow].append(finished)
         save_all(flows)
-
+        st.cache_data.clear()
 
 def fortryd(flow):
     if st.session_state.done_flows[flow]:
         back = st.session_state.done_flows[flow].pop()
         flows[flow].insert(0, back)
         save_all(flows)
-
+        st.cache_data.clear()
 
 # ✅ ALWAYS SAFE RESET
 def reset_flow(flow):
     flows[flow] = list(st.session_state.original_flows[flow])
     st.session_state.done_flows[flow] = []
     save_all(flows)
-
 
 # ✅ SAFE CLEAR (no data loss)
 def clear_done(flow):
