@@ -11,15 +11,6 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(layout="wide")
 st_autorefresh(interval=3000, key="refresh")
 
-st.markdown("""
-<style>
-div[data-testid="stMetricValue"] {
-    font-size: 1.6rem;
-    font-weight: normal;
-}
-</style>
-""", unsafe_allow_html=True)
-
 # ==================================================
 # CONFIG
 # ==================================================
@@ -59,23 +50,21 @@ def connect():
 sheet = connect()
 
 # ==================================================
-# LOAD & SAVE
+# LOAD / SAVE
 # ==================================================
 
 @st.cache_data(ttl=3)
 def load_data():
-    data = sheet.get_all_records()
-    df = pd.DataFrame(data)
+    df = pd.DataFrame(sheet.get_all_records())
 
     flows = {}
-
     for _, row in df.iterrows():
-        flow_name = str(row[SPOG_KOLONNE]).strip()
+        name = str(row[SPOG_KOLONNE]).strip()
 
-        if flow_name not in flows:
-            flows[flow_name] = []
+        if name not in flows:
+            flows[name] = []
 
-        flows[flow_name].append(row)
+        flows[name].append(row)
 
     for f in flows:
         flows[f] = sorted(flows[f], key=lambda x: x[ORDER_KOLONNE])
@@ -85,7 +74,6 @@ def load_data():
 
 def save_all(flows):
     rows = []
-
     for flow_name, entries in flows.items():
         for i, e in enumerate(entries):
             rows.append({
@@ -98,23 +86,27 @@ def save_all(flows):
 
     df = pd.DataFrame(rows)
     sheet.clear()
-    sheet.update([df.columns.values.tolist()] + df.values.tolist())
+    sheet.update([df.columns.tolist()] + df.values.tolist())
 
 # ==================================================
-# SESSION STATE ✅ CRITICAL
+# SESSION STATE (CRITICAL)
 # ==================================================
 
-if "flows" not in st.session_state:
-    st.session_state.flows = load_data()
+if "original_flows" not in st.session_state:
+    original = load_data()
+
+    st.session_state.original_flows = {
+        k: list(v) for k, v in original.items()
+    }
+
+    st.session_state.flows = {
+        k: list(v) for k, v in original.items()
+    }
 
 flows = st.session_state.flows
 
 if "done_flows" not in st.session_state:
-    st.session_state.done_flows = {f: [] for f in flows.keys()}
-
-for f in flows:
-    if f not in st.session_state.done_flows:
-        st.session_state.done_flows[f] = []
+    st.session_state.done_flows = {f: [] for f in flows}
 
 # ==================================================
 # HELPERS
@@ -123,66 +115,67 @@ for f in flows:
 def format_entry(e):
     return f"{e[STARTNR_KOLONNE]} - {e[FORER_KOLONNE]} ({e[HUND_KOLONNE]})"
 
+
 def avancer(flow):
     if flows[flow]:
         finished = flows[flow].pop(0)
         st.session_state.done_flows[flow].append(finished)
         save_all(flows)
-        st.session_state.flows = flows
+
 
 def fortryd(flow):
     if st.session_state.done_flows[flow]:
         back = st.session_state.done_flows[flow].pop()
         flows[flow].insert(0, back)
         save_all(flows)
-        st.session_state.flows = flows
 
-# ✅ reset one flow
-def reset_flow(flow_name):
-    fresh = load_data()
-    if flow_name in fresh:
-        st.session_state.flows[flow_name] = fresh[flow_name]
-    st.session_state.done_flows[flow_name] = []
 
-# ✅ restore lost dogs
-def restore_done(flow_name):
-    flows[flow_name] = st.session_state.done_flows[flow_name] + flows[flow_name]
-    st.session_state.done_flows[flow_name] = []
+# ✅ ALWAYS SAFE RESET
+def reset_flow(flow):
+    flows[flow] = list(st.session_state.original_flows[flow])
+    st.session_state.done_flows[flow] = []
     save_all(flows)
-    st.session_state.flows = flows
+
+
+# ✅ SAFE CLEAR (no data loss)
+def clear_done(flow):
+    flows[flow] = st.session_state.done_flows[flow] + flows[flow]
+    st.session_state.done_flows[flow] = []
+    save_all(flows)
+
 
 # ==================================================
 # SIDEBAR
 # ==================================================
 
-st.sidebar.title("Kontrolpanel")
+st.sidebar.title("Kontrol")
 
-mode_choice = st.sidebar.radio("Visning", ["Offentlig Skærm", "Administration"])
-layout_choice = st.sidebar.radio("Layout", ["Mobil", "Skærm"])
+mode = st.sidebar.radio("Visning", ["Offentlig Skærm", "Administration"])
+layout = st.sidebar.radio("Layout", ["Mobil", "Skærm"])
 
-mode = "admin" if mode_choice == "Administration" else "public"
-is_screen = layout_choice == "Skærm"
+is_admin = mode == "Administration"
+is_screen = layout == "Skærm"
 
 # ==================================================
-# PASSWORD
+# LOGIN
 # ==================================================
 
 admin_logged_in = False
 
-if mode == "admin":
+if is_admin:
 
     if "admin_ok" not in st.session_state:
         st.session_state.admin_ok = False
 
     if not st.session_state.admin_ok:
-        st.title("🔒 Administration login")
+        st.title("🔒 Login")
 
-        with st.form("login_form"):
-            password = st.text_input("Indtast kode", type="password")
-            submitted = st.form_submit_button("Log ind")
+        with st.form("login"):
+            pw = st.text_input("Kode", type="password")
+            ok = st.form_submit_button("Log ind")
 
-        if submitted:
-            if password.strip() == ADMIN_PASSWORD:
+        if ok:
+            if pw == ADMIN_PASSWORD:
                 st.session_state.admin_ok = True
                 st.rerun()
             else:
@@ -194,128 +187,93 @@ if mode == "admin":
 # DISPLAY
 # ==================================================
 
-def vis_flow(flow_name, flow):
+def vis_flow(name, flow):
     if not flow:
-        st.write("Ingen deltagere")
+        st.write("Ingen")
         return
 
     st.metric("🔍 SØGER", format_entry(flow[0]))
     st.metric("⏳ PÅ VENTEPLADS", format_entry(flow[1]) if len(flow) > 1 else "-")
 
     st.markdown("### 👉 NÆSTE")
-    for e in flow[2:2 + ANTAL_NAESTE_VISNING]:
+    for e in flow[2:2+ANTAL_NAESTE_VISNING]:
         st.write(format_entry(e))
 
 # ==================================================
 # PUBLIC
 # ==================================================
 
-if mode == "public":
+if not is_admin:
 
-    st.title("NoseWork Ventesystem")
+    st.title("NoseWork")
 
     if is_screen:
         cols = st.columns(len(flows))
-        for col, (flow_name, flow) in zip(cols, flows.items()):
+        for col, (name, flow) in zip(cols, flows.items()):
             with col:
-                st.header(flow_name)
-                vis_flow(flow_name, flow)
-
+                st.header(name)
+                vis_flow(name, flow)
     else:
         tabs = st.tabs(list(flows.keys()))
-        for tab, (flow_name, flow) in zip(tabs, flows.items()):
+        for tab, (name, flow) in zip(tabs, flows.items()):
             with tab:
-                vis_flow(flow_name, flow)
+                vis_flow(name, flow)
 
 # ==================================================
 # ADMIN
 # ==================================================
 
-if mode == "admin" and admin_logged_in:
+if is_admin and admin_logged_in:
 
     st.title("Administration")
 
     tabs = st.tabs(list(flows.keys()))
 
-    for tab, flow_name in zip(tabs, flows.keys()):
+    for tab, name in zip(tabs, flows.keys()):
         with tab:
 
-            flow = flows[flow_name]
-            done = st.session_state.done_flows[flow_name]
+            flow = flows[name]
+            done = st.session_state.done_flows[name]
 
-            st.subheader(flow_name)
+            st.subheader(name)
 
-            # ✅ CONTROL BUTTONS PER TAB
-            c1, c2, c3 = st.columns(3)
+            # ✅ Buttons INSIDE TAB
+            c1, c2 = st.columns(2)
 
-            if c1.button("🧹 Nulstil færdige", key=f"clear_{flow_name}"):
-                st.session_state.done_flows[flow_name] = []
+            if c1.button("🧹 Nulstil færdige", key=f"clear_{name}"):
+                clear_done(name)
                 st.rerun()
 
-            if c2.button("🔄 Genstart konkurrence", key=f"reset_{flow_name}"):
-                reset_flow(flow_name)
-                st.rerun()
-
-            if c3.button("⬅️ Gendan mistede", key=f"restore_{flow_name}"):
-                restore_done(flow_name)
+            if c2.button("🔄 Genstart", key=f"reset_{name}"):
+                reset_flow(name)
                 st.rerun()
 
             st.divider()
 
-            if flow:
-                st.metric("Søger", format_entry(flow[0]))
-            if len(flow) > 1:
-                st.metric("På venteplads", format_entry(flow[1]))
-
-            # NEXT / UNDO
-            col1, col2 = st.columns(2)
-
-            if col1.button("▶️ Næste", key=f"adv_{flow_name}"):
-                avancer(flow_name)
-                st.rerun()
-
-            if col2.button("↩️ Fortryd", key=f"undo_{flow_name}"):
-                fortryd(flow_name)
-                st.rerun()
-
-            st.divider()
-
-            # ACTIVE LIST
-            for idx, e in enumerate(flow):
-
-                colA, colB, colC, colD = st.columns([6,1,1,1])
-
+            # Active queue
+            for i, e in enumerate(flow):
                 marker = ""
-                if idx == 0:
-                    marker = " 🔴 SØGER"
-                elif idx == 1:
-                    marker = " 🟡 PÅ VENTEPLADS"
-                elif idx == 2:
-                    marker = " 🟢 NÆSTE"
+                if i == 0:
+                    marker = " 🔴"
+                elif i == 1:
+                    marker = " 🟡"
+                elif i == 2:
+                    marker = " 🟢"
 
-                colA.write(f"{format_entry(e)}{marker}")
-
-                if colB.button("⬆️", key=f"up_{flow_name}_{idx}") and idx > 0:
-                    flow[idx], flow[idx-1] = flow[idx-1], flow[idx]
-                    save_all(flows)
-                    st.session_state.flows = flows
-                    st.rerun()
-
-                if colC.button("⬇️", key=f"down_{flow_name}_{idx}") and idx < len(flow)-1:
-                    flow[idx], flow[idx+1] = flow[idx+1], flow[idx]
-                    save_all(flows)
-                    st.session_state.flows = flows
-                    st.rerun()
-
-                if colD.button("❌", key=f"del_{flow_name}_{idx}"):
-                    flow.pop(idx)
-                    save_all(flows)
-                    st.session_state.flows = flows
-                    st.rerun()
+                st.write(format_entry(e) + marker)
 
             st.divider()
 
-            # ✅ DONE LIST (correct order)
+            # Done
             st.markdown("### ✅ Allerede søgt")
             for e in done:
                 st.write(format_entry(e))
+
+            # Actions
+            if st.button("▶️ Næste", key=f"next_{name}"):
+                avancer(name)
+                st.rerun()
+
+            if st.button("↩️ Fortryd", key=f"undo_{name}"):
+                fortryd(name)
+                st.rerun()
