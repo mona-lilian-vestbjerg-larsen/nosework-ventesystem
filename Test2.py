@@ -238,13 +238,7 @@ if is_admin and admin_logged_in:
             st.subheader(name)
 
             # ✅ Buttons INSIDE TAB
-            c1, c2 = st.columns(2)
-
-            if c1.button("🧹 Nulstil færdige", key=f"clear_{name}"):
-                clear_done(name)
-                st.rerun()
-
-            if c2.button("🔄 Genstart", key=f"reset_{name}"):
+            if st.button("🔄 Genstart", key=f"reset_{name}"):
                 reset_flow(name)
                 st.rerun()
 
