@@ -104,6 +104,23 @@ def save_all(flows):
     sheet.update([df.columns.values.tolist()] + df.values.tolist())
 
 # ==================================================
+# SESSION STATE (CRITICAL FIX ✅)
+# ==================================================
+
+if "flows" not in st.session_state:
+    st.session_state.flows = load_data()
+
+flows = st.session_state.flows
+
+if "done_flows" not in st.session_state:
+    st.session_state.done_flows = {f: [] for f in flows.keys()}
+
+# ensure new flows also get entry
+for f in flows.keys():
+    if f not in st.session_state.done_flows:
+        st.session_state.done_flows[f] = []
+
+# ==================================================
 # HELPERS
 # ==================================================
 
@@ -114,17 +131,21 @@ def avancer(flow):
     if flows[flow]:
         finished = flows[flow].pop(0)
         st.session_state.done_flows[flow].append(finished)
+
         save_all(flows)
+
+        # ✅ keep session updated
         st.session_state.flows = flows
-        st.session_state.force_reload = True
 
 def fortryd(flow):
     if st.session_state.done_flows[flow]:
         back = st.session_state.done_flows[flow].pop()
         flows[flow].insert(0, back)
+
         save_all(flows)
+
+        # ✅ keep session updated
         st.session_state.flows = flows
-        st.session_state.force_reload = True
 
 # ==================================================
 # SIDEBAR
@@ -138,18 +159,9 @@ layout_choice = st.sidebar.radio("Layout", ["Mobil", "Skærm"])
 mode = "admin" if mode_choice == "Administration" else "public"
 is_screen = layout_choice == "Skærm"
 
-if "flows" not in st.session_state or st.session_state.get("force_reload"):
-    st.session_state.flows = load_data()
-    st.session_state.force_reload = False
-
-flows = st.session_state.flows
-
-if "done_flows" not in st.session_state:
+# Optional reset button
+if st.sidebar.button("🔄 Nulstil færdige"):
     st.session_state.done_flows = {f: [] for f in flows.keys()}
-
-for f in flows.keys():
-    if f not in st.session_state.done_flows:
-        st.session_state.done_flows[f] = []
 
 # ==================================================
 # PASSWORD PROTECTION
@@ -281,21 +293,24 @@ if mode == "admin" and admin_logged_in:
                 if colB.button("⬆️", key=f"up_{flow_name}_{idx}") and idx > 0:
                     flow[idx], flow[idx-1] = flow[idx-1], flow[idx]
                     save_all(flows)
+                    st.session_state.flows = flows
                     st.rerun()
 
                 if colC.button("⬇️", key=f"down_{flow_name}_{idx}") and idx < len(flow)-1:
                     flow[idx], flow[idx+1] = flow[idx+1], flow[idx]
                     save_all(flows)
+                    st.session_state.flows = flows
                     st.rerun()
 
                 if colD.button("❌", key=f"del_{flow_name}_{idx}"):
                     flow.pop(idx)
                     save_all(flows)
+                    st.session_state.flows = flows
                     st.rerun()
 
             st.divider()
 
-            # ✅ DONE SECTION (NOW WORKS)
+            # ✅ DONE LIST
             st.markdown("### ✅ Allerede søgt")
 
             for e in reversed(done):
