@@ -13,7 +13,6 @@ st_autorefresh(interval=3000, key="refresh")
 
 st.markdown("""
 <style>
-    /* ONLY the dog/handler text */
     div[data-testid="stMetricValue"] {
         font-size: 1.6rem;
         font-weight: normal;
@@ -25,7 +24,7 @@ st.markdown("""
 # CONFIG
 # ==================================================
 
-ADMIN_PASSWORD = "nosework"   # ← change this to your own
+ADMIN_PASSWORD = "nosework"
 
 SHEET_NAME = "NoseWork"
 WORKSHEET_NAME = "Ark1"
@@ -49,10 +48,8 @@ def connect():
         "https://www.googleapis.com/auth/drive",
     ]
 
-    creds_dict = st.secrets["gcp_service_account"]
-
     creds = Credentials.from_service_account_info(
-        creds_dict,
+        st.secrets["gcp_service_account"],
         scopes=scope
     )
 
@@ -76,23 +73,28 @@ def load_data():
         flow_name = str(row[SPOG_KOLONNE]).strip()
 
         if flow_name not in flows:
-            flows[flow_name] = []
+            flows[flow_name] = {
+                "queue": [],
+                "done": []
+            }
 
-        flows[flow_name].append(row)
+        flows[flow_name]["queue"].append(row)
 
     for f in flows:
-        flows[f] = sorted(flows[f], key=lambda x: x[ORDER_KOLONNE])
+        flows[f]["queue"] = sorted(flows[f]["queue"], key=lambda x: x[ORDER_KOLONNE])
 
     return flows
 
 # ==================================================
-# SAVE DATA
+# SAVE DATA (only saves active queue)
 # ==================================================
 
 def save_all(flows):
     rows = []
 
-    for flow_name, entries in flows.items():
+    for flow_name, flow_data in flows.items():
+        entries = flow_data["queue"]
+
         for i, e in enumerate(entries):
             rows.append({
                 SPOG_KOLONNE: flow_name,
@@ -114,12 +116,16 @@ def format_entry(e):
     return f"{e[STARTNR_KOLONNE]} - {e[FORER_KOLONNE]} ({e[HUND_KOLONNE]})"
 
 def avancer(flow):
-    flows[flow].append(flows[flow].pop(0))
-    save_all(flows)
+    if flows[flow]["queue"]:
+        finished = flows[flow]["queue"].pop(0)
+        flows[flow]["done"].append(finished)
+        save_all(flows)
 
 def fortryd(flow):
-    flows[flow].insert(0, flows[flow].pop())
-    save_all(flows)
+    if flows[flow]["done"]:
+        back = flows[flow]["done"].pop()
+        flows[flow]["queue"].insert(0, back)
+        save_all(flows)
 
 # ==================================================
 # SIDEBAR
@@ -127,24 +133,11 @@ def fortryd(flow):
 
 st.sidebar.title("Kontrolpanel")
 
-mode_choice = st.sidebar.radio(
-    "Visning",
-    ["Offentlig Skærm", "Administration"]
-)
-
-layout_choice = st.sidebar.radio(
-    "Layout",
-    # ["Skærm", "Mobil"]
-    ["Mobil", "Skærm"]
-)
+mode_choice = st.sidebar.radio("Visning", ["Offentlig Skærm", "Administration"])
+layout_choice = st.sidebar.radio("Layout", ["Mobil", "Skærm"])
 
 mode = "admin" if mode_choice == "Administration" else "public"
-# is_mobile = layout_choice == "Mobil"
 is_screen = layout_choice == "Skærm"
-
-# ==================================================
-# LOAD FLOWS
-# ==================================================
 
 flows = load_data()
 
@@ -179,13 +172,15 @@ if mode == "admin":
 # DISPLAY FUNCTION
 # ==================================================
 
-def vis_flow(flow_name, flow):
-    if not flow:
+def vis_flow(flow_name, flow_dict):
+    queue = flow_dict["queue"]
+
+    if not queue:
         st.write("Ingen deltagere")
         return
 
-    nu = format_entry(flow[0])
-    naeste = format_entry(flow[1]) if len(flow) > 1 else "-"
+    nu = format_entry(queue[0])
+    naeste = format_entry(queue[1]) if len(queue) > 1 else "-"
 
     st.markdown("### 🔍 SØGER")
     st.metric("", nu)
@@ -199,7 +194,7 @@ def vis_flow(flow_name, flow):
 
     st.markdown("### 👉 NÆSTE")
 
-    for e in flow[2:2 + ANTAL_NAESTE_VISNING]:
+    for e in queue[2:2 + ANTAL_NAESTE_VISNING]:
         st.write(format_entry(e))
 
 # ==================================================
@@ -239,13 +234,15 @@ if mode == "admin" and admin_logged_in:
         with tab:
 
             flow = flows[flow_name]
+            queue = flow["queue"]
+            done = flow["done"]
 
             st.subheader(flow_name)
 
-            if flow:
-                st.metric("Søger", format_entry(flow[0]))
-            if len(flow) > 1:
-                st.metric("På venteplads", format_entry(flow[1]))
+            if queue:
+                st.metric("Søger", format_entry(queue[0]))
+            if len(queue) > 1:
+                st.metric("På venteplads", format_entry(queue[1]))
 
             col1, col2 = st.columns(2)
 
@@ -259,8 +256,8 @@ if mode == "admin" and admin_logged_in:
 
             st.divider()
 
-            
-            for idx, e in enumerate(flow):
+            # ACTIVE QUEUE
+            for idx, e in enumerate(queue):
 
                 colA, colB, colC, colD = st.columns([6,1,1,1])
 
@@ -275,17 +272,24 @@ if mode == "admin" and admin_logged_in:
                 colA.write(f"{format_entry(e)}{marker}")
 
                 if colB.button("⬆️", key=f"up_{flow_name}_{idx}") and idx > 0:
-                    flow[idx], flow[idx-1] = flow[idx-1], flow[idx]
+                    queue[idx], queue[idx-1] = queue[idx-1], queue[idx]
                     save_all(flows)
                     st.rerun()
 
-                if colC.button("⬇️", key=f"down_{flow_name}_{idx}") and idx < len(flow)-1:
-                    flow[idx], flow[idx+1] = flow[idx+1], flow[idx]
+                if colC.button("⬇️", key=f"down_{flow_name}_{idx}") and idx < len(queue)-1:
+                    queue[idx], queue[idx+1] = queue[idx+1], queue[idx]
                     save_all(flows)
                     st.rerun()
 
                 if colD.button("❌", key=f"del_{flow_name}_{idx}"):
-                    flow.pop(idx)
+                    queue.pop(idx)
                     save_all(flows)
                     st.rerun()
 
+            st.divider()
+
+            # ✅ DONE SECTION
+            st.markdown("### ✅ Allerede søgt")
+
+            for e in reversed(done):
+                st.write(format_entry(e))
