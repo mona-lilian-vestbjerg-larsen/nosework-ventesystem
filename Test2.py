@@ -159,9 +159,13 @@ layout_choice = st.sidebar.radio("Layout", ["Mobil", "Skærm"])
 mode = "admin" if mode_choice == "Administration" else "public"
 is_screen = layout_choice == "Skærm"
 
-# Optional reset button
 if st.sidebar.button("🔄 Nulstil færdige"):
     st.session_state.done_flows = {f: [] for f in flows.keys()}
+
+if st.sidebar.button("🔄 Reset hele konkurrencen"):
+    st.session_state.flows = load_data()
+    st.session_state.done_flows = {f: [] for f in flows.keys()}
+    st.rerun()
 
 # ==================================================
 # PASSWORD PROTECTION
